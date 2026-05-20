@@ -1,5 +1,4 @@
-import { authenticate } from "../shopify.server";
-import db from "../db.server";
+import { authenticate, unauthenticated } from "../shopify.server";
 
 const LIMIT = 25;
 
@@ -20,13 +19,42 @@ export async function loader({ request }) {
       });
     }
 
-    const count = await db.deliverySlot.count({
-      where: {
-        shop: session.shop,
-        deliveryDate: date,
-        deliveryTime: time,
-      },
-    });
+    const timeTag = time
+      .replace(/\s+/g, "")
+      .replace(/[^a-zA-Z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .toLowerCase();
+
+    const dateTag = `date-${date}`;
+    const fullTimeTag = `time-${timeTag}`;
+
+    const { admin } = await unauthenticated.admin(session.shop);
+
+    const response = await admin.graphql(
+      `#graphql
+        query GetOrdersByDeliveryTag($query: String!) {
+          orders(first: 250, query: $query) {
+            nodes {
+              id
+              name
+              tags
+            }
+          }
+        }
+      `,
+      {
+        variables: {
+          query: `tag:${dateTag}`,
+        },
+      }
+    );
+
+    const result = await response.json();
+    const orders = result.data.orders.nodes || [];
+
+    const count = orders.filter((order) =>
+      order.tags.includes(fullTimeTag)
+    ).length;
 
     return Response.json({
       available: count < LIMIT,
