@@ -1,39 +1,25 @@
-import { authenticate, apiVersion } from "../shopify.server";
-import { shopifyApi } from "@shopify/shopify-api";
+import { authenticate } from "../shopify.server";
 
 const LIMIT = 25;
 
 export async function loader({ request }) {
   try {
-    const { session } = await authenticate.public.appProxy(request);
-
-    if (!session?.accessToken || !session?.shop) {
-      throw new Error("No app proxy session or access token");
-    }
-
-    const client = new shopifyApi.clients.Graphql({
-      session,
-      apiVersion,
-    });
+    const { admin } = await authenticate.public.appProxy(request);
 
     const url = new URL(request.url);
     const date = url.searchParams.get("date");
     const time = url.searchParams.get("time");
 
     if (!date || !time) {
-      return Response.json({
-        available: false,
-        message: "Date and time are required.",
-      });
+      return Response.json({ available: false, message: "Date and time are required." });
     }
 
-    const response = await client.query({
-      data: `#graphql
+    const response = await admin.graphql(
+      `#graphql
         query {
-          orders(first: 100, sortKey: CREATED_AT, reverse: true) {
+          orders(first: 100, query: "status:any") {
             nodes {
               id
-              name
               customAttributes {
                 key
                 value
@@ -41,10 +27,11 @@ export async function loader({ request }) {
             }
           }
         }
-      `,
-    });
+      `
+    );
 
-    const orders = response.body.data.orders.nodes;
+    const result = await response.json();
+    const orders = result.data.orders.nodes;
 
     const count = orders.filter((order) => {
       const attrs = order.customAttributes || [];
@@ -54,23 +41,27 @@ export async function loader({ request }) {
       return deliveryDate === date && deliveryTime === time;
     }).length;
 
+
     return Response.json({
       available: count < LIMIT,
       count,
       limit: LIMIT,
-      message: count < LIMIT ? "Available" : "This delivery time is fully booked.",
+      message:
+        count < LIMIT
+          ? "Available"
+          : "This delivery time is fully booked. Please select another time."
     });
+    
   } catch (error) {
     console.error("DE-COUNT ERROR MESSAGE:", error.message);
+    console.error("DE-COUNT GRAPHQL ERRORS:", JSON.stringify(error.graphqlErrors, null, 2));
 
-    return Response.json(
-      {
-        available: false,
-        count: 0,
-        limit: LIMIT,
-        message: error.message,
-      },
-      { status: 500 }
-    );
+    return Response.json({
+      available: false,
+      count: 0,
+      limit: LIMIT,
+      message: error.message,
+      graphqlErrors: error.graphqlErrors || []
+    }, { status: 500 });
   }
 }
