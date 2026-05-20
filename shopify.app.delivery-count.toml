@@ -1,0 +1,24 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "8fe5d64689afb01225b4408bc108bd8a"
+name = "delivery-count"
+application_url = "https://apollo-grown-aluminum-travesti.trycloudflare.com"
+embedded = true
+
+[webhooks]
+api_version = "2026-07"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_metaobject_definitions,write_metaobjects,write_products,read_orders"
+
+[app_proxy]
+url = "https://apollo-grown-aluminum-travesti.trycloudflare.com/proxy/de-count"
+subpath = "de-count"
+prefix = "apps"
+
+[auth]
+redirect_urls = [ "https://apollo-grown-aluminum-travesti.trycloudflare.com/api/auth" ]
+
+[build]
+automatically_update_urls_on_dev = true
