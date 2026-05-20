@@ -1,22 +1,11 @@
-import { authenticate, unauthenticated } from "../shopify.server";
+import { authenticate } from "../shopify.server";
+import db from "../db.server";
 
 const LIMIT = 25;
 
 export async function loader({ request }) {
   try {
     const { session } = await authenticate.public.appProxy(request);
-
-    if (!session?.shop) {
-      throw new Error("No shop from app proxy session");
-    }
-
-    const adminContext = await unauthenticated.admin(session.shop);
-
-    if (!adminContext?.admin) {
-      throw new Error("No admin client. Reinstall app on this store.");
-    }
-
-    const admin = adminContext.admin;
 
     const url = new URL(request.url);
     const date = url.searchParams.get("date");
@@ -31,33 +20,13 @@ export async function loader({ request }) {
       });
     }
 
-    const response = await admin.graphql(
-      `#graphql
-        query {
-          orders(first: 100, sortKey: CREATED_AT, reverse: true) {
-            nodes {
-              id
-              name
-              customAttributes {
-                key
-                value
-              }
-            }
-          }
-        }
-      `
-    );
-
-    const result = await response.json();
-    const orders = result.data?.orders?.nodes || [];
-
-    const count = orders.filter((order) => {
-      const attrs = order.customAttributes || [];
-      const deliveryDate = attrs.find((a) => a.key === "Date")?.value;
-      const deliveryTime = attrs.find((a) => a.key === "Time")?.value;
-
-      return deliveryDate === date && deliveryTime === time;
-    }).length;
+    const count = await db.deliverySlot.count({
+      where: {
+        shop: session.shop,
+        deliveryDate: date,
+        deliveryTime: time,
+      },
+    });
 
     return Response.json({
       available: count < LIMIT,
@@ -66,7 +35,7 @@ export async function loader({ request }) {
       message:
         count < LIMIT
           ? "Available"
-          : "This time is fully booked. Please select another time.",
+          : "This delivery time is fully booked. Please select another time.",
     });
   } catch (error) {
     console.error("DE-COUNT ERROR MESSAGE:", error.message);
