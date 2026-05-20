@@ -32,3 +32,15 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+model DeliverySlot {
+  id           Int      @id @default(autoincrement())
+  shop         String
+  orderId      String   @unique
+  orderName    String?
+  deliveryDate String
+  deliveryTime String
+  createdAt    DateTime @default(now())
+
+  @@index([shop, deliveryDate, deliveryTime])
+}
