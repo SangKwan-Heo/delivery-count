@@ -1,5 +1,4 @@
-import { authenticate, apiVersion } from "../shopify.server";
-import { shopifyApi } from "@shopify/shopify-api";
+import { authenticate, unauthenticated } from "../shopify.server";
 
 const LIMIT = 25;
 
@@ -7,14 +6,11 @@ export async function loader({ request }) {
   try {
     const { session } = await authenticate.public.appProxy(request);
 
-    if (!session?.accessToken || !session?.shop) {
-      throw new Error("No app proxy session or access token");
+    if (!session?.shop) {
+      throw new Error("No shop session from app proxy");
     }
 
-    const client = new shopifyApi.clients.Graphql({
-      session,
-      apiVersion,
-    });
+    const { admin } = await unauthenticated.admin(session.shop);
 
     const url = new URL(request.url);
     const date = url.searchParams.get("date");
@@ -23,12 +19,14 @@ export async function loader({ request }) {
     if (!date || !time) {
       return Response.json({
         available: false,
+        count: 0,
+        limit: LIMIT,
         message: "Date and time are required.",
       });
     }
 
-    const response = await client.query({
-      data: `#graphql
+    const response = await admin.graphql(
+      `#graphql
         query {
           orders(first: 100, sortKey: CREATED_AT, reverse: true) {
             nodes {
@@ -41,15 +39,22 @@ export async function loader({ request }) {
             }
           }
         }
-      `,
-    });
+      `
+    );
 
-    const orders = response.body.data.orders.nodes;
+    const result = await response.json();
+    const orders = result.data.orders.nodes || [];
 
     const count = orders.filter((order) => {
       const attrs = order.customAttributes || [];
-      const deliveryDate = attrs.find((a) => a.key === "Delivery Date")?.value;
-      const deliveryTime = attrs.find((a) => a.key === "Delivery Time")?.value;
+
+      const deliveryDate = attrs.find(
+        (attr) => attr.key === "Delivery Date"
+      )?.value;
+
+      const deliveryTime = attrs.find(
+        (attr) => attr.key === "Delivery Time"
+      )?.value;
 
       return deliveryDate === date && deliveryTime === time;
     }).length;
@@ -58,7 +63,10 @@ export async function loader({ request }) {
       available: count < LIMIT,
       count,
       limit: LIMIT,
-      message: count < LIMIT ? "Available" : "This delivery time is fully booked.",
+      message:
+        count < LIMIT
+          ? "Available"
+          : "This delivery time is fully booked. Please select another time.",
     });
   } catch (error) {
     console.error("DE-COUNT ERROR MESSAGE:", error.message);
