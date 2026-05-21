@@ -20,10 +20,12 @@ export async function loader({ request }) {
     }
 
     const timeTag = time
-      .replace(/\s+/g, "")
-      .replace(/[^a-zA-Z0-9]/g, "-")
-      .replace(/-+/g, "-")
-      .toLowerCase();
+  .replace(/\s+/g, "")
+  .replace(/[()]/g, "")
+  .replace(/[^a-zA-Z0-9]/g, "-")
+  .replace(/-+/g, "-")
+  .replace(/^-|-$/g, "")
+  .toLowerCase();
 
     const dateTag = `date-${date}`;
     const fullTimeTag = `time-${timeTag}`;
@@ -53,8 +55,8 @@ export async function loader({ request }) {
     const orders = result.data.orders.nodes || [];
 
     const count = orders.filter((order) =>
-      order.tags.includes(fullTimeTag)
-    ).length;
+  order.tags.includes(fullTimeTag)
+).length;
 
     return Response.json({
       available: count < LIMIT,
