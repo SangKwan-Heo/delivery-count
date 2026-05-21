@@ -25,10 +25,11 @@ export async function action({ request }) {
 
     const timeTag = deliveryTime
       .replace(/\s+/g, "")
-      .replace(/[^a-zA-Z0-9]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "")
-      .toLowerCase();
+  .replace(/[()]/g, "")
+  .replace(/[^a-zA-Z0-9]/g, "-")
+  .replace(/-+/g, "-")
+  .replace(/^-|-$/g, "")
+  .toLowerCase();
 
     const tags = [
       `date-${deliveryDate}`,
