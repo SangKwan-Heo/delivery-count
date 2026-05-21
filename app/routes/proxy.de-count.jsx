@@ -29,7 +29,8 @@ export async function loader({ request }) {
 
     const dateTag = `date-${date}`;
     const fullTimeTag = `time-${timeTag}`;
-
+console.log("DATE TAG:", dateTag);
+console.log("TIME TAG:", fullTimeTag);
     const { admin } = await unauthenticated.admin(session.shop);
 
     const response = await admin.graphql(
