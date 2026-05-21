@@ -1,6 +1,6 @@
 import { authenticate, unauthenticated } from "../shopify.server";
 
-const LIMIT = 1;
+const LIMIT = 25;
 
 export async function loader({ request }) {
   try {
